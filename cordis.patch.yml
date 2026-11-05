@@ -1,0 +1,5 @@
+- insert:
+    - id: dsh-room-world
+      name: dsh-room-world
+      config:
+        adapter: standalone

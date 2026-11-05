@@ -1,0 +1,39 @@
+{
+  "name": "dsh-room-world",
+  "version": "0.2.0",
+  "description": "大肥鱼的房间感知、QQ 互通与农场花园钓鱼活动插件，可独立运行或接入 SurfCore 等机器人。",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./adapter": "./lib/adapters.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "lib/",
+    "locale/",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "install:dsh": "node scripts/install-plugin.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "desktop-pet",
+    "surfcore"
+  ]
+}
