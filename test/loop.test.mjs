@@ -205,7 +205,8 @@ test('outing: she leaves the room and the world, can be recalled, and comes back
   await s.refresh();
   const wish = await s.tool({ target: 'world', action: 'wish', text: 'see  sunset   please' }, { by: 'owner' });
   assert.equal(wish.world.wishes[0].text, 'see sunset please', 'whitespace collapses without eating the letter s');
-  const out = await s.tool({ target: 'world', action: 'outing', hours: 1 }, { by: 'owner' });
+  assert.equal((await s.tool({ target: 'world', action: 'outing', hours: 1 }, { by: 'owner' })).code, 'OWNER_GUIDANCE_ONLY', 'going out is her decision');
+  const out = await s.tool({ target: 'world', action: 'outing', hours: 1 });
   assert.equal(out.world.location, 'away'); assert.ok(out.world.outing); assert.equal(out.world.autonomous, false);
   assert.equal(s.commands(0).events.at(-1).action, 'away', 'the room shows her leaving');
   assert.equal((await s.tool({ target: 'world', action: 'plant', area: 'farm', species: 'rice' })).code, 'OUTING_AWAY');
@@ -244,7 +245,7 @@ test('market: full-price selling and browsing; strolls elsewhere do not trade', 
   const sold = w.act({ action: 'sell', itemId: item.id, at: 'market' });
   assert.equal(sold.earned, item.price, 'full price in town'); assert.match(sold.text, /去镇上集市/);
   w.act({ action: 'recall' });
-  const browse = w.act({ action: 'outing', place: 'market', hours: 1 }, { by: 'owner' });
+  const browse = w.act({ action: 'outing', place: 'market', hours: 1 }, { by: 'self' });
   assert.equal(browse.world.outing.place, 'market'); assert.equal(browse.world.outing.purpose, 'stroll');
   for (let i = 0; i < 6; i++) { w.tick(); clock.t += 15000; }
   assert.ok(w.snapshot().outing, 'browsing the market does not end early');
