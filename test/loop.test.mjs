@@ -194,3 +194,29 @@ test('owner QQ guidance about the little world becomes a wish; room commands and
   assert.match((await s.tool({ target: 'world', action: 'observe' })).brief, /QQ 里说「今天多钓点鱼，想看锦鲤」/);
   assert.equal(s.world().world.planner.wantReason, 'wish', 'a new wish asks her to rethink her plan');
 });
+
+test('outing: she leaves the room and the world, can be recalled, and comes back by herself', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-outing-')); t.after(() => fs.rmSync(dir, { recursive: true }));
+  let clock = start();
+  const s = createService({ stateDir: dir, now: () => clock, planner: { enabled: false }, adapter: { context: async () => ({ id: 'a', persona: 'p' }) }, complete: async () => '' });
+  await s.refresh();
+  const wish = await s.tool({ target: 'world', action: 'wish', text: 'see  sunset   please' }, { by: 'owner' });
+  assert.equal(wish.world.wishes[0].text, 'see sunset please', 'whitespace collapses without eating the letter s');
+  const out = await s.tool({ target: 'world', action: 'outing', hours: 1 }, { by: 'owner' });
+  assert.equal(out.world.location, 'away'); assert.ok(out.world.outing); assert.equal(out.world.autonomous, false);
+  assert.equal(s.commands(0).events.at(-1).action, 'away', 'the room shows her leaving');
+  assert.equal((await s.tool({ target: 'world', action: 'plant', area: 'farm', species: 'rice' })).code, 'OUTING_AWAY');
+  const before = s.world().world.log.length;
+  clock += 30 * M; await s.sync();
+  assert.equal(s.world().world.log.length, before, 'no chores while she is out');
+  assert.match((await s.tool({ target: 'world', action: 'observe' })).brief, /出门中/);
+  const back = await s.tool({ target: 'world', action: 'recall' }, { by: 'owner' });
+  assert.equal(back.world.location, 'room'); assert.equal(back.world.outing, null);
+  assert.equal(s.commands(0).events.at(-1).action, 'home');
+  assert.equal((await s.tool({ target: 'world', action: 'recall' }, { by: 'owner' })).code, 'NOT_OUT');
+  await s.tool({ target: 'world', action: 'outing', hours: 1 });
+  clock += 61 * M; await s.sync();
+  assert.equal(s.world().world.location, 'room', 'she comes back on her own when the time is up');
+  assert.equal(s.commands(0).events.at(-1).action, 'home');
+  assert.equal((await s.tool({ target: 'world', action: 'visit', area: 'farm' }, { by: 'owner' })).code, 'OWNER_GUIDANCE_ONLY');
+});
