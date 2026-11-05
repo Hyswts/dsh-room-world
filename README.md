@@ -17,49 +17,84 @@ DeepSeek Harness（DSH）插件：给 DSH 里的 AI 角色一个「房间」和�
 - **主人只能引导**：本机接口只允许查看、看商店、看图鉴、留心愿、请她重新规划。QQ 私聊里说到小天地的话，会自动记成心愿。
 - **机器人适配器**：
   - `standalone`：自带人格；
-  - `surfcore`：只读 SurfCore 当前人格、记忆、心境和主人 QQ 私聊；
+  - 自定义适配器：接入你自己的 QQ 等聊天机器人，读取它的人格、记忆、心境和主人私聊（见下文「接入其他机器人」）；
   - 也可以通过 `registerAdapter` 接入其他机器人。
-- **QQ 上下文**：SurfCore 模式下，通过 DSH 的 `agent/pre-step` 钩子，只在主人私聊会话里补入房间事实和小屋简报。
+- **QQ 上下文**：接入机器人后，通过 DSH 的 `agent/pre-step` 钩子，只在主人私聊会话里补入房间事实和小屋简报。
 
 ## 安装
 
-需要 Node.js 22 及以上，以及 DSH。
+### 准备
 
-```bash
-git clone <this repo> dsh-room-world
-cd dsh-room-world
-npm test
-```
+- Windows 上已安装并打开过一次 **DSH**（DeepSeek Harness），并且在 DSH 设置里选好了**默认模型**。聊天和她的规划都用这个模型。
+- 已安装 **Node.js 22** 或更新版本。在命令行输入 `node -v` 能看到版本号即可。
+- 可选：一个运行在 DSH 里的 QQ 等聊天机器人。不接也能用，插件会用自带的大肥鱼人格。
 
-**方式一：在 DSH 的插件管理里添加这个目录或 `npm pack` 生成的 tgz，并启用 bundle。** 默认使用 `adapter: standalone`，模型用 DSH 设置里的默认模型。
+### 第一步：下载插件
 
-**方式二：用安装脚本**（Windows）：
+任选一种：
+
+- 用 git：
+
+  ```bash
+  git clone https://github.com/amimi-wenke/dsh-room-world.git
+  ```
+
+- 不会用 git：在本仓库页面点 **Code → Download ZIP**，解压到一个**固定的位置**，比如 `D:\dsh-plugins\dsh-room-world`。插件是以链接方式装进 DSH 的，装好后不要移动或删除这个文件夹。
+
+### 第二步：装进 DSH
+
+**方式一：安装脚本（推荐）**
+
+在插件文件夹里打开命令行，运行：
 
 ```bash
 node scripts/install-plugin.mjs desktop
 ```
 
-- 修改 profile 前会先备份；
-- 调用 DSH 官方包管理器，以 `link:` 方式登记本目录，离线安装，不运行依赖脚本；
-- 默认在本仓库所在盘的 `DSH/DeepSeek Harness.exe` 找 DSH，装在别处时设置 `DSH_DESKTOP_EXE`；
-- 能找到 SurfCore 时（`SURFCORE_ROOT` 指定的目录，或同级的 `surfcore` 目录），配置为 `surfcore` 适配器，并只给 SurfCore 的 QQ 工具白名单加上 `room_world`。
+- `desktop` 是 DSH 的 profile 名，大多数人就是这个。不确定的话，看 `%USERPROFILE%\.dsh\profiles\` 下面的文件夹名。
+- 脚本默认在插件所在盘的 `\DSH\DeepSeek Harness.exe` 找 DSH。装在别处的话，先设置环境变量再运行：
 
-插件列表里显示的名字是「大肥鱼 · 房间与小天地」。安装后需要重载插件，或者重启 DSH。
+  ```bash
+  set DSH_DESKTOP_EXE=C:\你的路径\DeepSeek Harness.exe
+  node scripts/install-plugin.mjs desktop
+  ```
 
-DSH profile 的 `cordis.patch.yml` 配置示例（bundle 会自己插入插件行，不要重复 insert）：
+- 脚本默认把插件配置为独立模式（`adapter: standalone`）。要接自己的机器人，按下文「接入其他机器人」写一个适配器，再在「配置」里把 `adapter` 改成它的名字。如果你的机器人限制了 QQ 会话能用的工具，记得把 `room_world` 加进它的白名单。
+- 脚本修改 DSH 配置前会备份到 `%USERPROFILE%\.dsh\room-world\install-backups\`；安装过程离线，不运行任何依赖脚本。
+
+**方式二：DSH 插件管理**
+
+在 [Releases](https://github.com/amimi-wenke/dsh-room-world/releases) 下载 `dsh-room-world-<版本>.tgz`，或者直接用插件文件夹，在 DSH 的插件管理里添加它，然后启用 bundle。用这种方式装时默认是 `adapter: standalone`。
+
+### 第三步：重启 DSH 并确认装好
+
+1. 完全退出 DSH，再重新打开。
+2. 在 DSH 的插件列表里能看到「大肥鱼 · 房间与小天地」。
+3. 文件 `%USERPROFILE%\.dsh\room-world\host.json` 已经生成，说明插件已经在运行。
+4. 打开桌面小屋 [dafeiyu-room](https://github.com/amimi-wenke/dafeiyu-room)，点「连接 DSH」，再打开「小天地」，就能看到她开始经营了。
+
+### 更新插件
+
+- 用 git 装的：在插件文件夹里运行 `git pull`，然后重启 DSH。
+- 用 zip 装的：下载新版，覆盖原文件夹里的文件，然后重启 DSH。
+
+小天地存档会自动升级，升级前的旧存档会备份成 `world.json.v1-backup.json`。
+
+### 配置
+
+在 DSH profile 的 `cordis.patch.yml` 里修改，路径是 `%USERPROFILE%\.dsh\profiles\desktop\cordis.patch.yml`。bundle 会自己插入插件行，只需要写这一段覆盖配置，不要重复 insert：
 
 ```yaml
 - id: dsh-room-world
   config:
-    adapter: surfcore            # 或 standalone
-    surfcoreRoot: /path/to/surfcore
-    qqContext: true              # 在主人 QQ 私聊里补入房间事实
+    adapter: standalone          # 或你注册的适配器名
+    qqContext: true              # 在主人 QQ 私聊里补入房间事实和小屋简报
     planner:
       enabled: true              # 她自己定打算（调用 DSH 默认模型）
-      maxPerDay: 4
+      maxPerDay: 4               # 每天最多规划几次，0~12
 ```
 
-`standalone` 模式可以加一个 `persona` 字段。
+`standalone` 模式可以加一个 `persona` 字段，自定义人格。改完要重启 DSH。
 
 ## 给 DSH / QQ 模型使用
 
@@ -92,7 +127,7 @@ DSH profile 的 `cordis.patch.yml` 配置示例（bundle 会自己插入插件�
 
 QQ 的「去吃白米饭」「去看书」「回家」「关灯」等明确短指令自动执行；疑问、否定和转述不按命令处理。复杂意图与世界游玩由 QQ 模型调用工具。
 
-SurfCore 模式下，每次主人 QQ 会话进入模型步骤时，独立插件通过 DSH `agent/pre-step` 自动补入当前房间事实、小屋简报和少量带来源的最近桌面对话。回答「房间接通了吗」「你在做什么」无需等模型自行选择工具。状态只进入 SurfCore 会话记录明确对应的主人私聊，不进入其他 DSH 会话或群聊，也不改写原人格和长期记忆。`qqContext: false` 可关闭自动补入；工具仍可手动读取事实。其他适配器实现 `matchesSession(agent)` 后也能使用同一机制。
+接入机器人后，每次主人 QQ 会话进入模型步骤时，独立插件通过 DSH `agent/pre-step` 自动补入当前房间事实、小屋简报和少量带来源的最近桌面对话。回答「房间接通了吗」「你在做什么」无需等模型自行选择工具。状态只进入适配器确认的主人私聊（适配器需实现 `matchesSession(agent)`），不进入其他 DSH 会话或群聊，也不改写原人格和长期记忆。`qqContext: false` 可关闭自动补入；工具仍可手动读取事实。
 
 活动感知不是实时图像：没有接入屏幕截图或实时房间视频。在线状态按 UI 心跳判断，超过 30 秒如实报告无法确认。新增上下文监听器需要重载插件或重启 DSH 后生效，现有聊天历史不会删除。
 
@@ -130,7 +165,7 @@ const promptBlock = facts.context + '\n' + facts.brief;
 
 `~/.dsh/room-world/host.json` 提供当前 loopback 地址、API 前缀 `/dsh-room-world/api` 和本机 token。桌面主进程读取它，浏览器只得到短期连接器 session。拒绝跨站、非回环和无 token 请求。不要把 host.json、token.json、聊天或存档提交到 Git。
 
-接口包括 GET `/status,/history,/room/events,/commands,/world,/qq-context`，POST `/chat,/room/state,/world`。`/status.qqContext` 报告监听注册状态、最近一次实际 QQ 注入时间与错误；`/qq-context` 只读干跑同一挂接路径，不向 QQ 发消息，也不把干跑计为实际注入。HTTP 请求头使用 `x-pet-token`（只用于本机接口，不是 SurfCore 的旧 token）。30 秒过期检测仅代表 UI 在线事实；世界存档可继续生长。
+接口包括 GET `/status,/history,/room/events,/commands,/world,/qq-context`，POST `/chat,/room/state,/world`。`/status.qqContext` 报告监听注册状态、最近一次实际 QQ 注入时间与错误；`/qq-context` 只读干跑同一挂接路径，不向 QQ 发消息，也不把干跑计为实际注入。HTTP 请求头使用 `x-pet-token`（只用于本机接口）。30 秒过期检测仅代表 UI 在线事实；世界存档可继续生长。
 
 存档按角色哈希隔离在 `~/.dsh/room-world/characters/` 与 `pet/room-link/`。切换人格时取消尚未完成的旧人格模型回复。API 模型调用有 180 秒超时，桌面重试使用稳定 requestId 防止重复写入。
 
