@@ -101,7 +101,8 @@ test('economy: shop tiers, buying, selling, cooking, and room meals use real sto
   w.act({ action: 'harvest', area: 'farm', slot: 0 });
   const radish = w.snapshot().warehouse[0];
   const sold = w.act({ action: 'sell', itemId: radish.id });
-  assert.equal(sold.earned, radish.price); assert.equal(w.snapshot().shells, 40 + radish.price);
+  assert.equal(sold.earned, Math.round(radish.price * 0.8), 'field stall pays 80%'); assert.equal(w.snapshot().shells, 40 + sold.earned);
+  assert.match(sold.text, /田园小摊/); assert.equal(w.snapshot().outing, null, 'selling at the stall needs no trip');
   view = w.snapshot();
   assert.equal(view.codex.found, 2, 'selling keeps codex records');
   assert.equal(view.orders.length, 2);
@@ -211,7 +212,7 @@ test('outing: she leaves the room and the world, can be recalled, and comes back
   const before = s.world().world.log.length;
   clock += 30 * M; await s.sync();
   assert.equal(s.world().world.log.length, before, 'no chores while she is out');
-  assert.match((await s.tool({ target: 'world', action: 'observe' })).brief, /出门中/);
+  assert.match((await s.tool({ target: 'world', action: 'observe' })).brief, /出门去/);
   const back = await s.tool({ target: 'world', action: 'recall' }, { by: 'owner' });
   assert.equal(back.world.location, 'room'); assert.equal(back.world.outing, null);
   assert.equal(s.commands(0).events.at(-1).action, 'home');
@@ -233,4 +234,23 @@ test('market trip: she goes to town to buy seeds by herself and comes back when 
   assert.ok(seen.slice(trip).some(x => x === '从集市回来了'), 'returns on her own: ' + seen.join(' / '));
   assert.equal(w.snapshot().outing, null);
   assert.ok(Object.keys(w.snapshot().seeds).length || [...w.snapshot().farm, ...w.snapshot().garden].filter(Boolean).length > 4, 'bought seeds got used');
+});
+
+test('market: full-price selling and browsing; strolls elsewhere do not trade', t => {
+  const { w, clock } = setup(t);
+  w.act({ action: 'plant', area: 'farm', species: 'rice' }); grow(w, clock, 'farm', 0, 40 * M);
+  w.act({ action: 'harvest', area: 'farm', slot: 0 });
+  const item = w.snapshot().warehouse[0];
+  const sold = w.act({ action: 'sell', itemId: item.id, at: 'market' });
+  assert.equal(sold.earned, item.price, 'full price in town'); assert.match(sold.text, /去镇上集市/);
+  w.act({ action: 'recall' });
+  const browse = w.act({ action: 'outing', place: 'market', hours: 1 }, { by: 'owner' });
+  assert.equal(browse.world.outing.place, 'market'); assert.equal(browse.world.outing.purpose, 'stroll');
+  for (let i = 0; i < 6; i++) { w.tick(); clock.t += 15000; }
+  assert.ok(w.snapshot().outing, 'browsing the market does not end early');
+  w.act({ action: 'recall' });
+  const sea = w.act({ action: 'outing', place: 'seaside' });
+  assert.equal(sea.world.outing.place, 'seaside');
+  const bought = w.act({ action: 'buy', item: 'bait' });
+  assert.match(bought.text, /顺路去集市/); assert.equal(bought.world.outing.place, 'market');
 });
