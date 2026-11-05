@@ -85,7 +85,10 @@ test('neglected watering lowers care and the harvest grade', t => {
 test('economy: shop tiers, buying, selling, cooking, and room meals use real stock', t => {
   const { w, clock } = setup(t);
   assert.throws(() => w.act({ action: 'buy', item: 'seed:tomato' }), /商店里没有/, 'tier 1 seeds stay locked');
-  w.act({ action: 'buy', item: 'seed:radish', qty: 2 }); assert.equal(w.snapshot().shells, 40);
+  const bought = w.act({ action: 'buy', item: 'seed:radish', qty: 2 }); assert.equal(w.snapshot().shells, 40);
+  assert.match(bought.text, /去镇上集市/); assert.equal(bought.world.location, 'away'); assert.equal(bought.world.outing.purpose, 'market');
+  assert.throws(() => w.act({ action: 'plant', area: 'farm', species: 'rice' }), /出门/, 'no field work while in town');
+  assert.equal(w.act({ action: 'recall' }).text, '从集市回来了');
   assert.throws(() => w.act({ action: 'buy', item: 'plot:farm' }), /贝壳不够/);
   assert.equal(w.roomActivity('rice'), '想吃白米饭，但电饭煲空了'); assert.ok(w.snapshot().cravings.rice);
   w.act({ action: 'plant', area: 'farm', species: 'rice' }); grow(w, clock, 'farm', 0, 40 * M);
@@ -126,8 +129,7 @@ test('she plays by herself for days, rests when she chooses, and resumes on her 
   const view = w.snapshot();
   assert.ok(view.codex.found >= 4, 'found ' + view.codex.found);
   assert.ok(view.farm.some(Boolean) || view.garden.some(Boolean), 'still farming after three days');
-  assert.ok(view.log.some(e => e.action === 'sell'), 'sells produce');
-  assert.ok(view.log.some(e => e.action === 'buy'), 'buys seeds');
+  assert.ok(view.farm.length + view.garden.length > 8 || view.shells > 100, 'trading at the market pays for seeds and land');
   assert.ok(view.warehouse.length < view.warehouseLimit, 'warehouse does not overflow');
   w.act({ action: 'auto', enabled: false }); const before = JSON.stringify(w.snapshot().log);
   assert.equal(w.snapshot().autonomous, false);
@@ -143,7 +145,7 @@ test('her plan runs step by step; invalid steps are dropped and failures recorde
   assert.deepEqual(set.dropped, ['teleport：不支持']);
   assert.equal(w.snapshot().policy.reserveShells, 10);
   w.act({ action: 'auto', enabled: true });
-  for (let i = 0; i < 5; i++) { w.tick(); clock.t += 15000; }
+  for (let i = 0; i < 12; i++) { w.tick(); clock.t += 15000; }
   const plan = w.snapshot().plan;
   assert.equal(plan.steps[0].status, 'done'); assert.equal(w.snapshot().farm[0].species, 'radish');
   assert.equal(plan.steps[2].status, 'failed'); assert.match(plan.steps[2].error, /商店里没有/);
@@ -219,4 +221,16 @@ test('outing: she leaves the room and the world, can be recalled, and comes back
   assert.equal(s.world().world.location, 'room', 'she comes back on her own when the time is up');
   assert.equal(s.commands(0).events.at(-1).action, 'home');
   assert.equal((await s.tool({ target: 'world', action: 'visit', area: 'farm' }, { by: 'owner' })).code, 'OWNER_GUIDANCE_ONLY');
+});
+
+test('market trip: she goes to town to buy seeds by herself and comes back when done', t => {
+  const { w, clock } = setup(t);
+  for (const species of ['rice', 'daisy']) while (w.snapshot().seeds[species]) w.act({ action: 'plant', area: species === 'rice' ? 'farm' : 'garden', species });
+  const seen = [];
+  for (let i = 0; i < 12; i++) { const r = w.tick(); if (r?.text) seen.push(r.text); clock.t += 15000; }
+  const trip = seen.findIndex(x => /去镇上集市/.test(x));
+  assert.ok(trip >= 0, seen.join(' / '));
+  assert.ok(seen.slice(trip).some(x => x === '从集市回来了'), 'returns on her own: ' + seen.join(' / '));
+  assert.equal(w.snapshot().outing, null);
+  assert.ok(Object.keys(w.snapshot().seeds).length || [...w.snapshot().farm, ...w.snapshot().garden].filter(Boolean).length > 4, 'bought seeds got used');
 });

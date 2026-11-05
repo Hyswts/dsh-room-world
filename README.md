@@ -14,6 +14,7 @@ DeepSeek Harness（DSH）插件：给 DSH 里的 AI 角色一个「房间」和�
   - 经济：每日行情、每日委托、商店分级、扩地、鱼缸，图鉴永久保存纪录；
   - 详见 [docs/2026-11-05-xiaotiandi-loop-plan.md](docs/2026-11-05-xiaotiandi-loop-plan.md)。
 - **她自己经营**：她读「小屋简报」，调用 DSH 默认模型定下打算（默认每天最多 4 次）。执行器每 15 秒照着打算或勤快规则做一件事，不调用模型。
+- **镇上集市**：买种子、卖收成、交委托都在镇上集市完成。她要买卖时会自己出门去集市（最多半小时），买卖完就回来；这段时间小天地的活先放着。
 - **出门**：她可以出门走走（默认 2 小时，最长 12 小时）。出门期间她不在房间，也不在小天地，小天地的活先放着，到点自己回来。主人可以让她出门，也可以随时叫她回来。
 - **主人只能引导**：本机接口只允许查看、看商店、看图鉴、留心愿、请她重新规划、让她出门、叫她回来。QQ 私聊里说到小天地的话，会自动记成心愿。
 - **机器人适配器**：
@@ -116,7 +117,7 @@ node scripts/install-plugin.mjs desktop
 
 房间动作：`pet,walk,roam,tour,choosebook,read,computer,sleep,tea,snack,stretch,window,fish,feed,water,dance,rice,away,home,auto,pause,lamp-on,lamp-off`。
 
-世界动作：`observe,visit,plant,water,harvest,fertilize,cast,collect,shop,buy,sell,deliver,cook,brew,craft,keep,release,decorate,codex,plan,auto,outing,recall`（`outing` 可带 `hours`；出门期间除了查看、规划和 `visit`/`recall` 回来，其他动作都返回 `OUTING_AWAY`）；区域 `room,farm,garden,pond`；地块编号从 0 开始（可扩建到 8 块）。物种、价格、生长时间见 `lib/species.js`；作物分三段，每段都要浇水；鱼咬钩后 10 分钟内要收竿。完整规则和自主规划见 [小天地方案](docs/2026-11-05-xiaotiandi-loop-plan.md)。工具返回简短结果加「小屋简报」(`brief`)，不再返回整份世界 JSON。
+世界动作：`observe,visit,plant,water,harvest,fertilize,cast,collect,shop,buy,sell,deliver,cook,brew,craft,keep,release,decorate,codex,plan,auto,outing,recall`（`outing` 可带 `hours`。`buy`、`sell`、`deliver` 会自动开始一趟去集市的短途出门，在集市里可以连续买卖，没事可做时她自己回来。出门期间除了查看、规划、买卖和 `visit`/`recall` 回来，其他动作都返回 `OUTING_AWAY`）；区域 `room,farm,garden,pond`；地块编号从 0 开始（可扩建到 8 块）。物种、价格、生长时间见 `lib/species.js`；作物分三段，每段都要浇水；鱼咬钩后 10 分钟内要收竿。完整规则和自主规划见 [小天地方案](docs/2026-11-05-xiaotiandi-loop-plan.md)。工具返回简短结果加「小屋简报」(`brief`)，不再返回整份世界 JSON。
 
 主人在 QQ 私聊里说到小天地的话（提到种地、钓鱼、买卖、物种名等，且不是「去吃白米饭」这类房间短指令），会在 10 分钟内自动记成心愿，即使 QQ 回合里她没有调用工具，这些引导也会进入她的下一次规划。工具输出统一转成无损 JSON（DSH 会拒绝含 `undefined` 的输出）；`status/look/check` 按 observe 处理，发给 world 的房间动作（如 walk）会转给房间。
 
