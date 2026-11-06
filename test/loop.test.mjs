@@ -264,3 +264,22 @@ test('stars rate size against the species standard; codex keeps the best stars',
   assert.equal(item.stars, 4, 'about 1.29x standard size is four stars');
   assert.equal(w.act({ action: 'codex' }).codex.entries.find(e => e.species === 'rice').best.stars, 4);
 });
+
+test('settings: planning is unlimited by default; pacing options change the world', async t => {
+  const { resolveConfig } = await import('../lib/config.js');
+  const cfg = resolveConfig({});
+  assert.equal(cfg.planner.maxPerDay, 0, 'no daily cap by default');
+  const view = { autonomous: true, plan: null, planner: { day: '2026-11-05', used: 50, lastAt: 0 } };
+  assert.equal(shouldPlan(view, start(), cfg.planner), 'no-plan', 'still plans after many runs');
+  assert.equal(shouldPlan(view, start(), resolveConfig({ planner: { maxPerDay: 3 } }).planner), '', 'a set cap still applies');
+  assert.equal(resolveConfig({ world: { growthSpeed: 99, stallRate: 0.1 } }).world.growthSpeed, 20, 'values are clamped');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-opts-')); t.after(() => fs.rmSync(dir, { recursive: true }));
+  let clock = start();
+  const w = createWorld({ file: path.join(dir, 'w.json'), now: () => clock, random: () => 0.5, options: { growthSpeed: 4, stallRate: 0.5 } });
+  w.act({ action: 'plant', area: 'farm', species: 'rice' });
+  for (let i = 0; i < 3; i++) { w.act({ action: 'water', area: 'farm', slot: 0 }); clock += 10 * M + 1; }
+  assert.equal(w.snapshot().farm[0].ready, true, 'four times faster: 2h rice ready in 30 minutes');
+  w.act({ action: 'harvest', area: 'farm', slot: 0 });
+  const item = w.snapshot().warehouse[0];
+  assert.equal(w.act({ action: 'sell', itemId: item.id }).earned, Math.round(item.price * 0.5));
+});

@@ -13,7 +13,7 @@ DeepSeek Harness（DSH）插件：给 DSH 里的 AI 角色一个「房间」和�
   - 大小：果实和鱼都有大小和等级，可以靠照料、施肥、育种、鱼饵去冲更大的；
   - 经济：每日行情、每日委托、商店分级、扩地、鱼缸，图鉴永久保存纪录；
   - 详见 [docs/2026-11-05-xiaotiandi-loop-plan.md](docs/2026-11-05-xiaotiandi-loop-plan.md)。
-- **她自己经营**：她读「小屋简报」，调用 DSH 默认模型定下打算（默认每天最多 4 次）。执行器每 15 秒照着打算或勤快规则做一件事，不调用模型。
+- **她自己经营**：她读「小屋简报」，调用 DSH 默认模型定下打算（默认不限次数，两次之间有最短间隔）。执行器每 15 秒照着打算或勤快规则做一件事，不调用模型。
 - **田园小摊和镇上集市**：
   - 田园小摊：不用出门就能卖收成，但价格只有八成；
   - 镇上集市：买种子、扩地、交委托、全价卖东西都在这里。她需要时会自己出门去集市（最多半小时），办完就回来，这段时间小天地的活先放着；
@@ -87,16 +87,34 @@ node scripts/install-plugin.mjs desktop
 
 ### 配置
 
-在 DSH profile 的 `cordis.patch.yml` 里修改，路径是 `%USERPROFILE%\.dsh\profiles\desktop\cordis.patch.yml`。bundle 会自己插入插件行，只需要写这一段覆盖配置，不要重复 insert：
+**推荐在 DSH 里改**：打开 DSH 的「设置」，左侧会有「大肥鱼 · 小天地」一栏，可以调：
+
+- **她的规划**：要不要让她自己定打算、每天最多规划几次（0 为不限，默认不限）、两次规划的最短间隔、有新心愿或新纪录时多久重新规划；
+- **小天地节奏**：作物生长速度倍率、她每隔几秒做一件事、去集市最多多久、出门默认多久、叫她回小屋后歇多久、田园小摊是集市价格的几成；
+- **QQ 与人格**：要不要在主人 QQ 私聊里补入小屋状态、QQ 里说到小天地要不要自动记成心愿、独立模式下的人格设定。
+
+保存后插件会自动重新加载，马上生效。
+
+也可以直接改配置文件：在 DSH profile 的 `cordis.patch.yml` 里修改，路径是 `%USERPROFILE%\.dsh\profiles\desktop\cordis.patch.yml`。bundle 会自己插入插件行，只需要写这一段覆盖配置，不要重复 insert：
 
 ```yaml
 - id: dsh-room-world
   config:
     adapter: standalone          # 或你注册的适配器名
     qqContext: true              # 在主人 QQ 私聊里补入房间事实和小屋简报
+    qqWishes: true               # QQ 里说到小天地自动记成心愿
     planner:
       enabled: true              # 她自己定打算（调用 DSH 默认模型）
-      maxPerDay: 4               # 每天最多规划几次，0~12
+      maxPerDay: 0               # 每天最多规划几次，0 为不限
+      minGapMinutes: 120         # 没有打算时两次规划的最短间隔
+      eventGapMinutes: 20        # 有新心愿、新纪录时多久重新规划
+    world:
+      growthSpeed: 1             # 生长速度倍率
+      tickSeconds: 15            # 她每隔几秒做一件事
+      marketMinutes: 30          # 去集市最多多少分钟
+      outingHours: 2             # 出门默认多少小时
+      restHomeMinutes: 30        # 叫她回小屋后歇多少分钟
+      stallRate: 0.8             # 田园小摊价格是集市的几成
 ```
 
 `standalone` 模式可以加一个 `persona` 字段，自定义人格。改完要重启 DSH。
@@ -126,7 +144,7 @@ node scripts/install-plugin.mjs desktop
 
 主人通过本机接口只能 `observe/shop/codex/wish/replan/recall`，其他世界动作返回 `OWNER_GUIDANCE_ONLY`；所有经营都由她（执行器或她的 `room_world` 调用）完成。
 
-配置 `planner: { enabled: true, maxPerDay: 4 }` 控制她自己定打算时调用 DSH 默认模型的次数；关闭后只按勤快规则自主游玩。
+规划次数、节奏等都能在 DSH「设置 → 大肥鱼 · 小天地」里调（见上文「配置」）；关闭规划后她只按勤快规则自主游玩。
 
 回家用 `{target:"room",action:"home"}` 或 `{target:"world",action:"visit",area:"room"}`。兼容 `go_home/return_home/back_home` 回家，以及 `world` 下 `move/go_to` 前往指定 area。回家会同步世界区域，她会在家歇 30 分钟再自己继续，避免刚回来又被自动任务带出门。`observe` 不移动角色。无法识别的动作返回具体纠正提示。
 
