@@ -93,7 +93,7 @@ node scripts/install-plugin.mjs desktop
 - **小天地节奏**：作物生长速度倍率、她每隔几秒做一件事、去集市最多多久、出门默认多久、叫她回小屋后歇多久、田园小摊是集市价格的几成；
 - **QQ 与人格**：要不要在主人 QQ 私聊里补入小屋状态、QQ 里说到小天地要不要自动记成心愿、独立模式下的人格设定。
 
-保存后插件会自动重新加载，马上生效。
+保存后马上生效，插件不用重启（这些都是可热更新的设置）。
 
 也可以直接改配置文件：在 DSH profile 的 `cordis.patch.yml` 里修改，路径是 `%USERPROFILE%\.dsh\profiles\desktop\cordis.patch.yml`。bundle 会自己插入插件行，只需要写这一段覆盖配置，不要重复 insert：
 
@@ -103,18 +103,16 @@ node scripts/install-plugin.mjs desktop
     adapter: standalone          # 或你注册的适配器名
     qqContext: true              # 在主人 QQ 私聊里补入房间事实和小屋简报
     qqWishes: true               # QQ 里说到小天地自动记成心愿
-    planner:
-      enabled: true              # 她自己定打算（调用 DSH 默认模型）
-      maxPerDay: 0               # 每天最多规划几次，0 为不限
-      minGapMinutes: 120         # 没有打算时两次规划的最短间隔
-      eventGapMinutes: 20        # 有新心愿、新纪录时多久重新规划
-    world:
-      growthSpeed: 1             # 生长速度倍率
-      tickSeconds: 15            # 她每隔几秒做一件事
-      marketMinutes: 30          # 去集市最多多少分钟
-      outingHours: 2             # 出门默认多少小时
-      restHomeMinutes: 30        # 叫她回小屋后歇多少分钟
-      stallRate: 0.8             # 田园小摊价格是集市的几成
+    plannerEnabled: true         # 她自己定打算（调用 DSH 默认模型）
+    plannerMaxPerDay: 0          # 每天最多规划几次，0 为不限
+    plannerMinGapMinutes: 120    # 没有打算时两次规划的最短间隔
+    plannerEventGapMinutes: 20   # 有新心愿、新纪录时多久重新规划
+    growthSpeed: 1               # 生长速度倍率
+    tickSeconds: 15              # 她每隔几秒做一件事
+    marketMinutes: 30            # 去集市最多多少分钟
+    outingHours: 2               # 出门默认多少小时
+    restHomeMinutes: 30          # 叫她回小屋后歇多少分钟
+    stallRate: 0.8               # 田园小摊价格是集市的几成
 ```
 
 `standalone` 模式可以加一个 `persona` 字段，自定义人格。改完要重启 DSH。

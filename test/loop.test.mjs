@@ -283,3 +283,25 @@ test('settings: planning is unlimited by default; pacing options change the worl
   const item = w.snapshot().warehouse[0];
   assert.equal(w.act({ action: 'sell', itemId: item.id }).earned, Math.round(item.price * 0.5));
 });
+
+test('settings changed in place (DSH volatile config) are picked up without restarting', async t => {
+  const { resolveConfig } = await import('../lib/config.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-live-')); t.after(() => fs.rmSync(dir, { recursive: true }));
+  const config = {}; let clock = start(), calls = 0;
+  const s = createService({ stateDir: dir, now: () => clock, settings: () => resolveConfig(config),
+    adapter: { context: async () => ({ id: 'a', persona: 'p' }) }, complete: async () => { calls++; return '{"goal":"x","steps":[]}'; } });
+  await s.refresh();
+  config.plannerMaxPerDay = 1;
+  await s.planNow('t1'); await assert.rejects(s.planNow('t2'), /用完/);
+  config.plannerMaxPerDay = 0;
+  await s.planNow('t3'); assert.equal(calls, 2, 'raising the cap applies immediately');
+  config.plannerEnabled = false; clock += 3 * H;
+  await s.sync(); await new Promise(r => setTimeout(r, 20)); assert.equal(calls, 2, 'turning planning off stops automatic plans');
+});
+
+test('volatile settings arrive as live references and are unwrapped', async t => {
+  const { resolveConfig } = await import('../lib/config.js');
+  const ref = v => ({ get: () => v });
+  const cfg = resolveConfig({ plannerMaxPerDay: ref(7), plannerEnabled: ref(false), qqWishes: ref(false), growthSpeed: ref(2), adapter: 'surfcore' });
+  assert.equal(cfg.planner.maxPerDay, 7); assert.equal(cfg.planner.enabled, false); assert.equal(cfg.qqWishes, false); assert.equal(cfg.world.growthSpeed, 2);
+});
