@@ -22,8 +22,8 @@ DeepSeek Harness（DSH）插件：给 DSH 里的 AI 角色一个「房间」和�
 - **主人只能引导**：本机接口只允许查看、看商店、看图鉴、留心愿、请她重新规划、叫她回来。QQ 私聊里说到小天地的话，会自动记成心愿。
 - **机器人适配器**：
   - `standalone`：自带人格；
-  - 自定义适配器：接入你自己的 QQ 等聊天机器人，读取它的人格、记忆、心境和主人私聊（见下文「接入其他机器人」）；
-  - 也可以通过 `registerAdapter` 接入其他机器人。
+  - `bot`：通用机器人适配器，按约定的目录读取 DSH 里某个机器人插件的人格、记忆、心境和主人私聊，只读不写（见下文「通用机器人适配器」）；
+  - 也可以通过 `registerAdapter` 写自己的适配器（见下文「接入其他机器人」）。
 - **QQ 上下文**：接入机器人后，通过 DSH 的 `agent/pre-step` 钩子，只在主人私聊会话里补入房间事实和小屋简报。
 
 ## 安装
@@ -64,7 +64,7 @@ node scripts/install-plugin.mjs desktop
   node scripts/install-plugin.mjs desktop
   ```
 
-- 脚本默认把插件配置为独立模式（`adapter: standalone`）。要接自己的机器人，按下文「接入其他机器人」写一个适配器，再在「配置」里把 `adapter` 改成它的名字。如果你的机器人限制了 QQ 会话能用的工具，记得把 `room_world` 加进它的白名单。
+- 脚本默认把插件配置为独立模式（`adapter: standalone`）。要接自己的机器人，运行前设置 `ROOM_WORLD_BOT_NAME`（机器人插件的名字），需要时再设置 `ROOM_WORLD_BOT_ROOT`（它的源码目录），脚本会配置成通用机器人适配器；也可以按下文「接入其他机器人」写一个适配器。如果你的机器人限制了 QQ 会话能用的工具，记得把 `room_world` 加进它的白名单。
 - 脚本修改 DSH 配置前会备份到 `%USERPROFILE%\.dsh\room-world\install-backups\`；安装过程离线，不运行任何依赖脚本。
 
 **方式二：DSH 插件管理**
@@ -100,7 +100,9 @@ node scripts/install-plugin.mjs desktop
 ```yaml
 - id: dsh-room-world
   config:
-    adapter: standalone          # 或你注册的适配器名
+    adapter: standalone          # standalone、bot，或你注册的适配器名
+    # botName: my-bot            # adapter 为 bot 时：机器人插件的名字
+    # botRoot: D:/bots/my-bot    # adapter 为 bot 时：机器人源码目录，一般留空自动查找
     qqContext: true              # 在主人 QQ 私聊里补入房间事实和小屋简报
     qqWishes: true               # QQ 里说到小天地自动记成心愿
     plannerEnabled: true         # 她自己定打算（调用 DSH 默认模型）
@@ -151,6 +153,21 @@ QQ 的「去吃白米饭」「去看书」「回家」「关灯」等明确短�
 接入机器人后，每次主人 QQ 会话进入模型步骤时，独立插件通过 DSH `agent/pre-step` 自动补入当前房间事实、小屋简报和少量带来源的最近桌面对话。回答「房间接通了吗」「你在做什么」无需等模型自行选择工具。状态只进入适配器确认的主人私聊（适配器需实现 `matchesSession(agent)`），不进入其他 DSH 会话或群聊，也不改写原人格和长期记忆。`qqContext: false` 可关闭自动补入；工具仍可手动读取事实。
 
 活动感知不是实时图像：没有接入屏幕截图或实时房间视频。在线状态按 UI 心跳判断，超过 30 秒如实报告无法确认。新增上下文监听器需要重载插件或重启 DSH 后生效，现有聊天历史不会删除。
+
+## 通用机器人适配器
+
+`adapter: bot` 适合把人格和 QQ 记录存在磁盘上的 DSH 机器人插件。设 `botName` 为机器人插件的名字，适配器只读取下面这些位置，从不写入：
+
+| 读取内容 | 位置 |
+| --- | --- |
+| 当前角色 | `~/.dsh/<botName>/characters/current.json`（`{"id": "角色id"}`） |
+| 人格、名字 | `~/.dsh/<botName>/characters/<角色id>/persona.md`、`character.json` |
+| QQ 记忆注入块 | `~/.dsh/<botName>/characters/<角色id>/memory/memory-card-prompt-qq.md` |
+| 心境与驱动（可选） | `~/.dsh/<botName>/characters/<角色id>/purpose-outreach.json` |
+| 主人 QQ 与会话 | `<botRoot>/config.json` 的 `ownerQQ`，`<botRoot>/state/sessions.json` 的 `private:<ownerQQ>` |
+| 主人私聊记录 | 机器人本机控制台 `http://127.0.0.1:<consolePort>/api/socialV2/recent`，令牌取 `config.json` 的 `consoleToken` 或 `state/console-token` |
+
+`botRoot` 留空时，从 `~/.dsh/plugins/<botName>` 的安装链接往上两级查找。你的机器人目录结构不同的话，用下面的 `registerAdapter` 自己写一个。
 
 ## 接入其他机器人
 

@@ -33,23 +33,13 @@ pkg.dsh ||= {}; pkg.dsh.profile ||= {}; pkg.dsh.profile.bundles ||= [];
 if (!pkg.dsh.profile.bundles.includes('dsh-room-world')) pkg.dsh.profile.bundles.push('dsh-room-world');
 fs.writeFileSync(packageFile, JSON.stringify(pkg, null, 2) + '\n');
 if (!/^\s*- id: dsh-room-world\s*$/m.test(patch)) {
-  // SurfCore checkout: SURFCORE_ROOT, or a sibling folder named surfcore.
-  const surfcore = process.env.SURFCORE_ROOT || path.join(root, '..', 'surfcore');
-  const adapterConfig = fs.existsSync(path.join(surfcore, 'src', 'bridge.js'))
-    ? '    adapter: surfcore\n    surfcoreRoot: ' + JSON.stringify(surfcore.replaceAll('\\', '/')) + '\n'
+  // A bot plugin to read persona and QQ history from: ROOM_WORLD_BOT_NAME (its plugin id), optional ROOM_WORLD_BOT_ROOT.
+  const botName = (process.env.ROOM_WORLD_BOT_NAME || '').trim(), botRoot = (process.env.ROOM_WORLD_BOT_ROOT || '').trim();
+  const adapterConfig = botName
+    ? '    adapter: bot\n    botName: ' + JSON.stringify(botName) + '\n' + (botRoot ? '    botRoot: ' + JSON.stringify(botRoot.replaceAll('\\', '/')) + '\n' : '')
     : '    adapter: standalone\n';
   fs.writeFileSync(patchFile, patch + '\n# Independent room/world plugin\n- id: dsh-room-world\n  config:\n' + adapterConfig);
 }
-// SurfCore intentionally limits QQ tools. Add only this plugin's explicit tool;
-// preserve all other restrictions, and back up before touching the installed copy.
-const guardFile = path.join(home, 'plugins', 'surfcore', 'qq-tool-restrict.mjs');
-if (fs.existsSync(guardFile)) {
-  const guard = fs.readFileSync(guardFile, 'utf8');
-  if (!guard.includes("'room_world'")) {
-    const marker = "  'surfcore_web_search',";
-    if (!guard.includes(marker)) throw new Error('SurfCore 白名单结构不同：插件已安装，请手动把 room_world 加入 QQ 工具白名单');
-    fs.copyFileSync(guardFile, path.join(backup, 'qq-tool-restrict.mjs'));
-    fs.writeFileSync(guardFile, guard.replace(marker, marker + "\n  'room_world', // Independent room/world integration"));
-  }
-}
+// Bot plugins may restrict which tools QQ chats can call; that list belongs to the bot, so it is not edited here.
+if (process.env.ROOM_WORLD_BOT_NAME) console.log('提示：如果机器人插件限制了 QQ 可用工具，请在它的白名单里加入 room_world。');
 console.log('已安装独立房间插件到 DSH profile：' + profileName + '。重载 DSH 后生效。备份：' + backup);

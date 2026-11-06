@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Dafeiyu Room & World",
-    "description": "Room awareness and control, QQ-to-desktop context, and autonomous farming, gardening and fishing. Works standalone or with your own bot through adapters."
+    "description": "Room awareness and control, QQ-to-desktop context, and autonomous farming, gardening and fishing. Works independently or reads persona and QQ history from a bot plugin through an adapter."
   }
 }

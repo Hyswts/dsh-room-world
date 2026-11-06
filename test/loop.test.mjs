@@ -302,6 +302,6 @@ test('settings changed in place (DSH volatile config) are picked up without rest
 test('volatile settings arrive as live references and are unwrapped', async t => {
   const { resolveConfig } = await import('../lib/config.js');
   const ref = v => ({ get: () => v });
-  const cfg = resolveConfig({ plannerMaxPerDay: ref(7), plannerEnabled: ref(false), qqWishes: ref(false), growthSpeed: ref(2), adapter: 'surfcore' });
+  const cfg = resolveConfig({ plannerMaxPerDay: ref(7), plannerEnabled: ref(false), qqWishes: ref(false), growthSpeed: ref(2), adapter: 'bot' });
   assert.equal(cfg.planner.maxPerDay, 7); assert.equal(cfg.planner.enabled, false); assert.equal(cfg.qqWishes, false); assert.equal(cfg.world.growthSpeed, 2);
 });
