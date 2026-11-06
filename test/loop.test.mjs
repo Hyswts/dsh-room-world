@@ -255,3 +255,12 @@ test('market: full-price selling and browsing; strolls elsewhere do not trade', 
   const bought = w.act({ action: 'buy', item: 'bait' });
   assert.match(bought.text, /顺路去集市/); assert.equal(bought.world.outing.place, 'market');
 });
+
+test('stars rate size against the species standard; codex keeps the best stars', t => {
+  const { w, clock } = setup(t, { random: () => 0.99 });
+  w.act({ action: 'plant', area: 'farm', species: 'rice' }); grow(w, clock, 'farm', 0, 40 * M);
+  w.act({ action: 'harvest', area: 'farm', slot: 0 });
+  const item = w.snapshot().warehouse[0];
+  assert.equal(item.stars, 4, 'about 1.29x standard size is four stars');
+  assert.equal(w.act({ action: 'codex' }).codex.entries.find(e => e.species === 'rice').best.stars, 4);
+});
