@@ -56,7 +56,7 @@ test('budget: reads today\'s cost, deducts it from the daily budget and blocks w
   assert.equal(state.ok, false);
 });
 
-test('budget: falls back to apiCostCny when costCny is missing, and fails closed when neither exists', async () => {
+test('budget: falls back to apiCostCny when costCny is missing, and fails closed when a found row has neither', async () => {
   // row without costCny but with apiCostCny
   const meter = fakeMeter({ rows: [{ id: 'room-world-test', apiCostCny: 0.25, found: true }] });
   const gate = gateOf(meter);
@@ -64,11 +64,30 @@ test('budget: falls back to apiCostCny when costCny is missing, and fails closed
   assert.equal(allowed.ok, true);
   assert.equal(allowed.spentCny, 0.25);
 
-  const empty = gateOf(fakeMeter({ rows: [{ id: 'room-world-test', found: false }] }));
-  const blocked = await empty.allow('plan');
+  // found:true says the session has ledger data, but no CNY amount survived the freeze:
+  // that is a broken/unknown ledger, so fail closed.
+  const broken = gateOf(fakeMeter({ rows: [{ id: 'room-world-test', calls: 2, found: true }] }));
+  const blocked = await broken.allow('plan');
   assert.equal(blocked.ok, false);
   assert.equal(blocked.code, 'BUDGET_UNKNOWN');
   assert.equal(blocked.reason.includes('fail-closed'), true);
+});
+
+test('budget: a fresh session (found:false, no FX fields yet) counts as zero spend, not as unavailable', async () => {
+  // Measured real shape from dsh-cost-meter session-tree.js: empty(id) has numeric buckets
+  // but FX fields (costCny/apiCostCny) are absent until a contributing row recorded them.
+  const meter = fakeMeter({ rows: [{ id: 'room-world-test', input: 0, output: 0, calls: 0, cost: 0, apiCost: 0, found: false }] });
+  const gate = gateOf(meter, { config: { dailyBudgetCny: 0.6 } });
+  const allowed = await gate.allow('plan');
+  assert.equal(allowed.ok, true, 'the first plan must be allowed so it can create the ledger row');
+  assert.equal(allowed.spentCny, 0);
+  assert.equal(allowed.remainingCny, 0.6);
+  assert.equal(allowed.code, 'BUDGET_OK');
+  assert.equal(gate.state().ok, true);
+  // and chat allowance reads the same fresh row without failing over
+  const chat = await gate.allow('chat', { by: 'owner' });
+  assert.equal(chat.ok, true);
+  assert.equal(chat.code, 'BUDGET_OK');
 });
 
 test('budget: missing service, thrown query and invalid rows all fail closed (no model call)', async () => {
