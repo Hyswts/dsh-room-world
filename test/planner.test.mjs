@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createService, historyAsText } from '../lib/service.js';
-import { shouldPlan, plannerMessages, parsePlannerReply, MAX_PLAN_FAILS, PLANNER_DEFAULTS } from '../lib/planner.js';
+import { shouldPlan, plannerMessages, parsePlannerReply, normalizePlan, MAX_PLAN_FAILS, PLANNER_DEFAULTS } from '../lib/planner.js';
 import { appendPlannerAttempt, plannerRawFile } from '../lib/planner-log.js';
 
 const M = 60000, H = 3600000;
@@ -26,6 +26,18 @@ test('shouldPlan backs off after a failure, caps attempts, and stops after repea
   assert.equal(shouldPlan({ ...base, planner: { day, used: 0, lastAt: 0, attemptDay: day, attempts: 3 } }, t, capped), 'no-plan');
   assert.equal(shouldPlan({ ...base, planner: { day, used: 0, lastAt: 0, parseFailDay: day, parseFails: MAX_PLAN_FAILS } }, t, PLANNER_DEFAULTS), '');
   assert.equal(shouldPlan({ ...base, planner: { day, used: 0, lastAt: 0, parseFailDay: '2026-11-04', parseFails: MAX_PLAN_FAILS } }, t, PLANNER_DEFAULTS), 'no-plan', 'yesterday\'s failures do not count');
+});
+
+test('plan steps accept display names for species and normalize them to ids', () => {
+  const plan = normalizePlan({ goal: '种地', steps: [
+    { action: 'plant', area: 'farm', species: '稻米' },
+    { action: 'plant', area: 'garden', species: 'sunflower' },
+    { action: 'plant', area: 'garden', species: '蓝鲸花' },
+    { action: 'plant', area: 'farm', species: '不存在的花' },
+  ] });
+  assert.deepEqual(plan.steps.map(s => s.species), ['rice', 'sunflower', 'bluewhale']);
+  assert.equal(plan.steps.length, 3);
+  assert.match(plan.dropped[0], /未知物种 不存在的花/);
 });
 
 test('planner prompt demands a single closed JSON object and can carry a retry hint', () => {

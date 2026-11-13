@@ -166,6 +166,19 @@ test('a plan waiting to collect with no line out moves on instead of stalling fo
   assert.ok(plan.cursor >= 1, 'the cursor must move past the impossible collect step');
 });
 
+test('a deliver step for a crop that is not growing fails instead of holding the plan', t => {
+  const { w, clock } = setup(t);
+  const order = w.snapshot().orders.find(o => !o.done);
+  assert.ok(order, 'the save starts with an open order');
+  w.act({ action: 'plan', plan: { goal: '交委托', steps: [{ action: 'deliver', orderId: order.id }, { action: 'cast' }] } }, { by: 'self' });
+  w.act({ action: 'auto', enabled: true });
+  w.tick(); clock.t += 15000;
+  const plan = w.snapshot().plan;
+  assert.equal(plan.steps[0].status, 'failed');
+  assert.match(plan.steps[0].error, /也还没在种/);
+  assert.ok(plan.cursor >= 1, 'the cursor must move past the impossible deliver step');
+});
+
 test('service: brief replaces raw JSON, room meals consume stock, and planning is model-driven but limited', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-plan-')); t.after(() => fs.rmSync(dir, { recursive: true }));
   let clock = start(), calls = 0, prompt = '';
