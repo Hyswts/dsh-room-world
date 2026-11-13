@@ -297,6 +297,9 @@ test('settings: planning is unlimited by default; pacing options change the worl
   assert.equal(shouldPlan(view, start(), cfg.planner), 'no-plan', 'still plans after many runs');
   assert.equal(shouldPlan(view, start(), resolveConfig({ planner: { maxPerDay: 3 } }).planner), '', 'a set cap still applies');
   assert.equal(resolveConfig({ world: { growthSpeed: 99, stallRate: 0.1 } }).world.growthSpeed, 20, 'values are clamped');
+  assert.equal(cfg.sync.intervalMs, 30000, 'console sync defaults to every 30s');
+  assert.equal(resolveConfig({ syncIntervalSeconds: 1 }).sync.intervalMs, 5000, 'the sync interval is clamped to 5..120s');
+  assert.equal(resolveConfig({ syncIntervalSeconds: 999 }).sync.intervalMs, 120000);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-opts-')); t.after(() => fs.rmSync(dir, { recursive: true }));
   let clock = start();
   const w = createWorld({ file: path.join(dir, 'w.json'), now: () => clock, random: () => 0.5, options: { growthSpeed: 4, stallRate: 0.5 } });
